@@ -2,13 +2,15 @@ module Samplers
 using Reexport
 
 # Write your package code here.
-include("ising.jl")
+include("IsingModel.jl")
+include("Measurements.jl")
 
-@reexport using .IsingModel
+@reexport using .Ising
+@reexport using .Measure
 
-"""
-Defines measurement structures to Julian-ly keep track of observables
-"""
+
+
+
 
 
 end
