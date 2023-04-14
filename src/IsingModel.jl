@@ -1,4 +1,6 @@
 module Ising
+using .Threads
+
 """
 Metropolis-Hastings algorithm for the Ising model in 1, 2, and 3 dimensions.
 """
@@ -6,12 +8,16 @@ Metropolis-Hastings algorithm for the Ising model in 1, 2, and 3 dimensions.
 export Ising_1d
 export periodic, free
 export hamiltonian
+export total_magnetization
 export MetropolisHastings!
 
 abstract type IsingModel end
 abstract type Ising_1d <: IsingModel end
 abstract type Ising_2d <: IsingModel end
 abstract type Ising_3d <: IsingModel end
+
+global const crit_temp_2d = 2.26918531421;
+
 
 ##########################################################################################
 # Begin configuration struct definitions
@@ -283,15 +289,8 @@ function hamiltonian(im::Periodic_1d)::Float64
   pair_sum = 0.0
   site_sum = im.h * sum(im.state)
 
-  site_sum = sum(im.state)
-  for i in 1:im.num_spins
-  #@simd for i in 1:im.num_spins
-    # Pair sum
-    if i == im.num_spins
-      pair_sum += im.state[1] * im.state[im.num_spins]
-    else
-      pair_sum += im.state[i] * im.state[i+1]
-    end
+  @inbounds @simd for i in 1:im.num_spins
+    pair_sum += im.state[i] * im.state[i == im.num_spins ? 1 : i+1]
   end
 
   return (-im.beta * pair_sum) - site_sum
@@ -311,8 +310,7 @@ function hamiltonian(im::Free_1d)::Float64
   pair_sum = 0.0
   site_sum = im.h * sum(im.state)
 
-  site_sum = sum(im.state)
-  @simd for i in 1:im.num_spins-1
+  @inbounds @simd for i in 1:im.num_spins-1
     # Pair sum
     pair_sum += im.state[i] * im.state[i+1]
   end
@@ -320,41 +318,152 @@ function hamiltonian(im::Free_1d)::Float64
   return (-im.beta * pair_sum) - site_sum
 end
 
+"""
+Free 2d hamiltonian
+"""
+function hamiltonian(im::Free_2d)::Float64
+  pair_sum = 0.0
+  site_sum = im.h * sum(im.state)
+
+  for i in 1:im.num_spins
+    for j in 1:im.num_spins
+      pair_sum += i+1 > im.num_spins ? 0 : im.state[i,j] * im.state[i+1, j]
+      pair_sum += j+1 > im.num_spins ? 0 : im.state[i,j] * im.state[i, j+1]
+    end
+  end
+
+  return (-im.beta * pair_sum) - site_sum
+end
+
+"""
+Periodic 2d hamiltonian
+"""
+function hamiltonian(im::Periodic_2d)::Float64
+  pair_sum = 0.0
+  site_sum = im.h * sum(im.state)
+
+  for i in 1:im.num_spins
+    for j in 1:im.num_spins
+      pair_sum += im.state[i,j] * (i == im.num_spins ? im.state[1,j] : im.state[i+1, j])
+      pair_sum += im.state[i,j] * (j == im.num_spins ? im.state[i,1] : im.state[i, j+1])
+    end
+  end
+
+  return (-im.beta * pair_sum) - site_sum
+end
+
+##########################################################################################
+
+function total_magnetization(im::T) where T <: IsingModel
+  return sum(im.state)
+end
+
+function neighbors(im::Periodic_1d, i::Int)
+  ns = im.num_spins
+  return [CartesianIndex(ifelse(i==1, ns, i-1)), CartesianIndex(ifelse(i==ns, 1, i+1))]
+end
+
+function neighbors(im::Periodic_2d, i,j)
+  ns = im.num_spins
+  return [CartesianIndex((ifelse(i==1, ns, i-1), j)),
+    CartesianIndex((ifelse(i==ns, 1, i+1), j)),
+    CartesianIndex((i, ifelse(j==1, ns, j-1))),
+    CartesianIndex((i, ifelse(j==ns, 1, j+1)))]
+end
+
+function neighbors(im::Periodic_3d, i,j,k)
+  return [CartesianIndex((ifelse(i==1, ns, i-1), j, k)),
+    CartesianIndex((ifelse(i==ns, 1, i+1), j, k)),
+    CartesianIndex((i, ifelse(j==1, ns, j-1), k)),
+    CartesianIndex((i, ifelse(j==ns, 1, j+1), k)),
+    CartesianIndex((i, j, ifelse(k==1, ns, k-1))),
+    CartesianIndex((i, j, ifelse(k==ns, 1, k+1)))]
+end
+
 ###########################################################################################
 # Beginning of sampling algs
 
 """
-Metropolis-Hastings algorithm for 1d models
+Metropolis-Hastings algorithm for 1d
+
+ASSUMES PERIODIC
 """
 function MetropolisHastings!(im::T, niters::Int=10^6) where {T <: Ising_1d}
   @assert niters > 0 
-  niters > 100 || println("{ising.jl :: update!} -- Recommended that niters >> 1000")
 
-  s = im.state
   ns = im.num_spins
-  prob = 1/1(1+exp(-2*im.beta)*im.h)
 
-  # TODO -- Is there a way to O(1) do this?
-  oldH = hamiltonian(im)
+  for _ in 1:niters
+    for _ in 1:ns
+      i = rand(1:ns)
 
-  for i in 1:niters
-    idx = rand(1:ns)
-    im.state[idx] *= -1
-
-    newH = hamiltonian(im)
-
-    if rand() < prob || newH < oldH
-      oldH = newH
-    else 
-      s[idx] *= -1
+      energy = bond_energ
     end
   end
+
+end
+
+function bond_energy(im::T, i, j) where T <: Ising_2d
+  nbrs = neighbors(im, i,j)
+  
+  return -im.state[i,j]*(im.state[nbrs[1]] + im.state[nbrs[2]] + im.state[nbrs[3]] + im.state[nbrs[4]])
+end
+
+
+"""
+Metropolis-Hastings algorithm for 2d
+
+ASSUMES PERIODIC, ASSUME 0 FIELD
+"""
+function MetropolisHastings!(im::T, niters::Int=10^6) where {T <: Ising_2d}
+  @assert niters > 0
+
+  ns = im.num_spins
+
+  for _ in 1:niters
+    for _ in 1:ns^2
+      i = rand(1:ns)
+      j = rand(1:ns)
+  
+      energy = bond_energy(im, i,j) / im.beta
+      de = -2 * (energy + 0)
+
+      if (de <= 0 || rand() < exp(-de / crit_temp))
+        im.state[i,j] *= -1
+        im.energy += de / (ns^2)
+        im.magnetization += 2.0 * im.state[i,j] * im.state[ns, ns]
+      end
+    end
+  end
+
 end
 
 """
-Metropolis-Hastings algorithm for 2d models
+Metropolis-Hastings algorithm for 3d
 """
 function MetropolisHastings!(im::T, niters::Int=10^6) where {T <: Ising_2d}
+  @assert niters > 0
+
+end
+
+"""
+Wolff clustering for 1d
+"""
+function Wolff!(im::T, niters::Int=10^6) where {T <: Ising_1d}
+
+end
+
+"""
+Wolff clustering
+"""
+function Wolff!(im::T, niters::Int=10^6) where {T <: Ising_2d}
+
+end
+
+"""
+
+"""
+function Wolff!(im::T, niters::Int=10^6) where {T <: Ising_3d}
 
 end
 
