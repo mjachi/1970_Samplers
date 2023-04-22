@@ -16,11 +16,10 @@ abstract type Ising_1d <: IsingModel end
 abstract type Ising_2d <: IsingModel end
 abstract type Ising_3d <: IsingModel end
 
-global const crit_temp_2d = 2.26918531421;
-
+global const crit_temp_2d = (2 / log(1 + sqrt(2)));
 
 ##########################################################################################
-# Begin configuration struct definitions
+# Configuration struct definitions
 
 """
   `Free_1d <: Ising1d`
@@ -355,7 +354,7 @@ end
 ##########################################################################################
 
 function total_magnetization(im::T) where T <: IsingModel
-  return sum(im.state)
+  return mean(im.state)
 end
 
 function neighbors(im::Periodic_1d, i::Int)
@@ -386,7 +385,7 @@ end
 """
 Metropolis-Hastings algorithm for 1d
 
-ASSUMES PERIODIC
+ASSUMES PERIODIC, 0 FIELD
 """
 function MetropolisHastings!(im::T, niters::Int=10^6) where {T <: Ising_1d}
   @assert niters > 0 
@@ -469,21 +468,6 @@ end
 
 ###########################################################################################
 # Beginning of physical calculations
-
-"""
-  `boltzmann(im::Ising_1d)::Float64`
-
-Calculates the Boltzmann measure of a 1-d configuration
-
-# Arguments
-
-- `im::Ising_1d`: The configuration of interest
-"""
-function boltzmann(im::Ising_1d)::Float64
-  # TODO -- old gidas pset?
-
-end
-
 
 
 
