@@ -7,7 +7,7 @@ include("Measurements.jl")
 
 @reexport using .Ising
 @reexport using .Ising.Analysis
-@reexport using .Measure
+@reexport using .Measurements
 
 
 

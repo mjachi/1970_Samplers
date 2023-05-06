@@ -5,12 +5,10 @@ using Plots
 
 io = IOContext(stdout)
 
-# Analytical solution of the critical temperature
-global const IsingTc_1d = 2/(log(1+sqrt(2)))
+@testset "1d tests" begin
+    include("OneDim.jl")
+end
 
-@testset "Sanity checks" begin
-
-  
-
-
+@testset "2d tests" begin
+    include("TwoDim.jl")
 end
