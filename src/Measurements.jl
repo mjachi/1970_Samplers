@@ -32,6 +32,4 @@ function mean(acc::Accumulator{T}) where T <: AbstractFloat
   return acc.data / acc.count
 end
 
-
-
 end

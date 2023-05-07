@@ -1,4 +1,5 @@
 using Samplers
+using SpecialFunctions
 ###########################################################################################
 # Analytical values
 ###########################################################################################
@@ -21,7 +22,7 @@ end
 function onsager_internal_energy(beta::T) where {T <: AbstractFloat}
     k = 2 * tanh(2 * beta) / cosh(2 * beta)
     j = 2 * tanh(2 * beta) - 1
-    K = SpecialFunctions.ellipk(k^2)
+    K = ellipk(k^2)
 
     return -coth(2 * beta) * (1 + 2/π * j * K)
 end
@@ -31,8 +32,8 @@ end
 """
 function onsager_heat_capacity(beta::T) where {T <: AbstractFloat}
     k = 2 * tanh(2 * beta) / cosh(2 * beta)
-    K = SpecialFunctions.ellipk(k^2)
-    E = SpecialFunctions.ellipe(k^2)
+    K = ellipk(k^2)
+    E = ellipe(k^2)
     j = 2 * tanh(2 * beta)^2 - 1
     return beta^2 * coth(2*beta)^2 * (2/π) * (((j - 1//2)^2 + 7//4) * K - 2E - (1 - j) * π / 2)
 end
@@ -43,7 +44,7 @@ end
 @testset "Average magnetization" begin
     im1 = Periodic_2d(250, 100.0)
     im2 = Periodic_2d(250, 10.0)
-    im3 = Periodic_3d(250, 5.0)
+    im3 = Periodic_2d(250, 5.0)
     Metropolis!(im1)
     Metropolis!(im2)
     Metropolis!(im3)
@@ -53,6 +54,18 @@ end
 end
 
 @testset "Susceptibility" begin
+    Ts_mc = range(0.5, 2.5, length=4)
+    C_mc = Float64[]
+    for T in Ts_mc
+        M_acc = Measurements.Accumulator(0.0)
+        M2_acc = Measurements.Accumulator(0.0)
+
+    end
+end
+
+
+@testset "Heat Capacity" begin
+
 
 end
 

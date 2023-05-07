@@ -1,14 +1,13 @@
 using Samplers
 using Test
 using BenchmarkTools
-using Plots
 
 io = IOContext(stdout)
 
-@testset "1d tests" begin
-    include("OneDim.jl")
+@testset "1d Metropolis" begin
+    include("Metropolis/OneDim.jl")
 end
 
-@testset "2d tests" begin
-    include("TwoDim.jl")
+@testset "2d Metropolis" begin
+    include("Metropolis/TwoDim.jl")
 end

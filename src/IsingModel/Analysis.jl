@@ -1,5 +1,5 @@
 """
-Implements a set of MCMC analysis tools for the Ising model.
+Implements a set of error analysis tools.
 """
 module Analysis
 
