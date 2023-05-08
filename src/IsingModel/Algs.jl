@@ -150,7 +150,7 @@ function Metropolis!(im::T, niters::Int=1000) where T <: Ising_3d
             j = rand(1:ns)
             k = rand(1:ns)
             
-            de = -2/im.beta * dEnergy(im,i,j)
+            de = -2/im.beta * dEnergy(im,i,j,k)
             if (de <= 0 || rand() < exp(-de))
                 im.state[i,j,k] *= -1
 
@@ -370,9 +370,7 @@ function Wolff!(im::T, niters::Int=10^6) where T <: Ising_2d
         cluster_size = sum(cluster)
 
         im.magnetization += -2 * im.state[curr_coord] * cluster_size
-        
         im.state .= ifelse.(cluster, im.state .* -1, im.state)
-
         im.energy = Hamiltonian(im)
     end
 end
@@ -391,7 +389,7 @@ function Wolff!(im::T, niters::Int=10^6) where T <: Ising_3d
         i = rand(1:ns)
         j = rand(1:ns)
         k = rand(1:ns)
-        curr_coord = CartesianIndex((i,j))
+        curr_coord = CartesianIndex((i,j,k))
 
         cluster = wolff_cluster(im, curr_coord)
 

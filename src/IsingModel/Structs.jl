@@ -110,8 +110,8 @@ mutable struct Periodic_3d <: Ising_3d
     energy = 0.0
     # N.B. Due to periodicity, it is sufficient to only look "north-east"
     @inbounds @simd for i in 1:ns
-      @inbounds @simd for i in 1:ns
-        @inbounds @simd for i in 1:ns
+      @inbounds @simd for j in 1:ns
+        @inbounds @simd for k in 1:ns
           nbr_sum = init[i==ns ? 1 : i+1,j,k] +
             init[i,j==ns ? 1 : j+1,k] + init[i,j,k==ns ? 1 : k+1]
 
@@ -163,12 +163,12 @@ function Hamiltonian(im::T)::Float64 where T <: Ising_3d
   energy = 0.0
   # N.B. Due to periodicity, it is sufficient to only look "north-east"
   @inbounds @simd for i in 1:ns
-    @inbounds @simd for i in 1:ns
-      @inbounds @simd for i in 1:ns
-        nbr_sum = im[i==ns ? 1 : i+1,j,k] +
-          im[i,j==ns ? 1 : j+1,k] + im[i,j,k==ns ? 1 : k+1]
+    @inbounds @simd for j in 1:ns
+      @inbounds @simd for k in 1:ns
+        nbr_sum = im.state[i==ns ? 1 : i+1,j,k] +
+          im.state[i,j==ns ? 1 : j+1,k] + im.state[i,j,k==ns ? 1 : k+1]
 
-        energy += im[i,j] * nbr_sum
+        energy += im.state[i,j] * nbr_sum
       end
     end
   end
