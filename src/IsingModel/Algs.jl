@@ -1,4 +1,3 @@
-global const crit_temp_2d = (2 / log(1 + sqrt(2)))
 
 ###########################################################################################
 # Metropolis
@@ -78,7 +77,7 @@ Metropolis-Hastings implementation for the Ising model.
 
 -`niters::Int`: Numbers of sweeps to complete.
 """
-function Metropolis!(im::T, niters::Int=10^6) where T <: Ising_1d
+function Metropolis!(im::T, niters::Int=1000) where T <: Ising_1d
     @assert niters > 0
     ns = im.num_spins
 
@@ -108,7 +107,7 @@ Metropolis-Hastings implementation for the Ising model.
 
 -`niters::Int`: Number of sweeps to complete.
 """
-function Metropolis!(im::T, niters::Int=10^6) where T <: Ising_2d
+function Metropolis!(im::T, niters::Int=1000) where T <: Ising_2d
     @assert niters > 0
 
     ns = im.num_spins
@@ -141,7 +140,7 @@ Metropolis-Hastings implementation for the Ising model.
 -`niters::Int`: Number of sweeps to complete.
 
 """
-function Metropolis!(im::T, niters::Int=10^6) where T <: Ising_3d
+function Metropolis!(im::T, niters::Int=1000) where T <: Ising_3d
     @assert niters > 0
 
     ns = im.num_spins
@@ -267,14 +266,141 @@ end
 # Wolff
 ###########################################################################################
 
+# Helpers
+
+"""
+Forms the cluster to be flipped
+"""
+function wolff_cluster(im::T, i::CartesianIndex) where {T <: Ising_1d}
+    # padd = wolff_p_add(1/im.beta)
+    cluster = falses(size(im.state)...)
+
+    queue = [i]
+    while !isempty(queue)
+        j = pop!(queue)
+        for x in neighbors(im, j[1])
+            if !(cluster[x]) && im.state[x] == im.state[j] && rand() < -expm1(-2/im.beta)
+                cluster[x] = true
+                push!(queue, x)
+            end
+        end
+    end
+
+    return cluster
+end
+
+function wolff_cluster(im::T, i::CartesianIndex) where {T <: Ising_2d}
+    cluster = falses(size(im.state)...)
+
+    queue = [i]
+    while !isempty(queue)
+        j = pop!(queue)
+        for x in neighbors(im, j[1], j[2])
+            if !(cluster[x]) && im.state[x] == im.state[j] && rand() < -expm1(-2/im.beta)
+                cluster[x] = true
+                push!(queue, x)
+            end
+        end
+    end
+
+    return cluster
+end
+
+function wolff_cluster(im::T, i::CartesianIndex) where {T <: Ising_3d}
+    cluster = falses(size(im.state)...)
+
+    queue = [i]
+    while !isempty(queue)
+        j = pop!(queue)
+        for x in neighbors(im, j[1], j[2], j[3])
+            if !(cluster[x]) && im.state[x] == im.state[j] && rand() < -expm1(-2/im.beta)
+                cluster[x] = true
+                push!(queue, x)
+            end
+        end
+    end
+
+    return cluster
+end
+
+
+
+# Implementations
+
+"""
+    `Wolff!`
+
+Implementation of the Wolff algorithm for the 1d Ising Model
+"""
 function Wolff!(im::T, niters::Int=10^6) where T <: Ising_1d
+    @assert niters > 0
 
+    ns = im.num_spins
+
+    for _ in 1:niters
+        i = rand(1:ns)
+        curr_coord = CartesianIndex((i))
+
+        cluster = wolff_cluster(im, curr_coord)
+        cluster_size = sum(cluster)
+
+        im.magnetization += -2 * im.state[curr_coord] * cluster_size
+        
+        im.state .= ifelse.(cluster, im.state .* -1, im.state)
+        im.energy = Hamiltonian(im)
+    end
 end
+
+"""
+    `Wolff!`
+
+Implementation of the Wolff algorithm for the 2d Ising Model
+"""
 function Wolff!(im::T, niters::Int=10^6) where T <: Ising_2d
+    @assert niters > 0
 
+    ns = im.num_spins
+
+    for _ in 1:niters
+        i = rand(1:ns)
+        j = rand(1:ns)
+        curr_coord = CartesianIndex((i,j))
+
+        cluster = wolff_cluster(im, curr_coord)
+        cluster_size = sum(cluster)
+
+        im.magnetization += -2 * im.state[curr_coord] * cluster_size
+        
+        im.state .= ifelse.(cluster, im.state .* -1, im.state)
+
+        im.energy = Hamiltonian(im)
+    end
 end
-function Wolff!(im::T, niters::Int=10^6) where T <: Ising_3d
 
+"""
+    `Wolff!`
+
+Implementation of the Wolff algorithm for the 3d Ising Model
+"""
+function Wolff!(im::T, niters::Int=10^6) where T <: Ising_3d
+    @assert niters > 0
+
+    ns = im.num_spins
+
+    for _ in 1:niters
+        i = rand(1:ns)
+        j = rand(1:ns)
+        k = rand(1:ns)
+        curr_coord = CartesianIndex((i,j))
+
+        cluster = wolff_cluster(im, curr_coord)
+
+        cluster_size = sum(cluster)
+
+        im.magnetization += -2 * im.state[curr_coord] * cluster_size
+        im.state .= ifelse.(cluster, im.state .* -1, im.state)
+        im.energy = Hamiltonian(im)
+    end
 end
 
 ###########################################################################################
@@ -288,12 +414,15 @@ Implements the perfect sampling algorithm for the 1d Ising model.
 
 """
 function Perfect!(im::T) where T <: Ising_1d
+    @assert im.beta > 0
 
 end
 function Perfect!(im::T) where T <: Ising_2d
+    @assert im.beta > 0
 
 end
 function Perfect!(im::T) where T <: Ising_3d
+    @assert im.beta > 0
 
 end
 
@@ -301,14 +430,17 @@ end
 # Coupling from the past (CFTP)
 ###########################################################################################
 
-function CFTP() where T <: Ising_1d
+function CFTP(im::T) where T <: Ising_1d
+    @assert im.beta > 0
 
 end
 
-function CFTP() where T <: Ising_2d
+function CFTP(im::T) where T <: Ising_2d
+    @assert im.beta > 0
 
 end
 
-function CFTP() where T <: Ising_3d
+function CFTP(im::T) where T <: Ising_3d
+    @assert im.beta > 0
 
 end

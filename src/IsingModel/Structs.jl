@@ -1,6 +1,6 @@
 module Ising
 
-export IsingMode, Ising_1d, Ising_2d, Ising_3d
+export IsingModel, Ising_1d, Ising_2d, Ising_3d
 export Periodic_1d, Periodic_2d, Periodic_3d
 export Metropolis!, Wolff!, Perfect!
 
@@ -66,7 +66,7 @@ mutable struct Periodic_2d <: Ising_2d
     @assert ns > 0
     @assert beta > 0
 
-    init = rand(Int8[-1,1], ns)
+    init = rand(Int8[-1,1], (ns, ns))
 
     energy = 0.0
     # N.B. Due to periodicity, it is sufficient to only look "north-east"
@@ -124,6 +124,56 @@ mutable struct Periodic_3d <: Ising_3d
 
     new(ns, init, beta, beta*energy, mag)
   end
+end
+
+###########################################################################################
+# Hamiltonians
+###########################################################################################
+
+function Hamiltonian(im::T)::Float64 where T <: Ising_1d
+  ns = im.num_spins
+
+  energy = 0.0
+  @inbounds @simd for i in 1:ns
+    energy += im.state[i] * im.state[i == ns ? 1 : i+1]
+  end
+
+  return im.beta * energy
+end
+
+function Hamiltonian(im::T)::Float64 where T <: Ising_2d
+  ns = im.num_spins
+
+  energy = 0.0
+  # N.B. Due to periodicity, it is sufficient to only look "north-east"
+  @inbounds @simd for i in 1:ns
+    @inbounds @simd for j in 1:ns
+      energy += im.state[i,j] * (
+        im.state[i==ns ? 1 : i+1, j] + im.state[i, j==ns ? 1 : j+1]
+      )
+    end
+  end
+
+  return im.beta * energy
+end
+
+function Hamiltonian(im::T)::Float64 where T <: Ising_3d
+  ns = im.num_spins
+
+  energy = 0.0
+  # N.B. Due to periodicity, it is sufficient to only look "north-east"
+  @inbounds @simd for i in 1:ns
+    @inbounds @simd for i in 1:ns
+      @inbounds @simd for i in 1:ns
+        nbr_sum = im[i==ns ? 1 : i+1,j,k] +
+          im[i,j==ns ? 1 : j+1,k] + im[i,j,k==ns ? 1 : k+1]
+
+        energy += im[i,j] * nbr_sum
+      end
+    end
+  end
+
+  return im.beta * energy
 end
 
 include("Algs.jl")

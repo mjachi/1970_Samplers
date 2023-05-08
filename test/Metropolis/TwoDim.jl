@@ -45,8 +45,11 @@ end
     im1 = Periodic_2d(250, 100.0)
     im2 = Periodic_2d(250, 10.0)
     im3 = Periodic_2d(250, 5.0)
+    println("{Average Magnetization} -- Running Metropolis on im1")
     Metropolis!(im1)
+    println("{Average Magnetization} -- Running Metropolis on im2")
     Metropolis!(im2)
+    println("{Average Magnetization} -- Running Metropolis on im3")
     Metropolis!(im3)
     @test abs(im1.average_magnetization) <= 0.001
     @test abs(im2.average_magnetization) <= 0.001

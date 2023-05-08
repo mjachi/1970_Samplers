@@ -2,7 +2,6 @@
 Implements several physical calculations
 """
 
-module Physics
 
 export SpecificHeat, Susceptibility
 
@@ -40,7 +39,5 @@ function Susceptibility(
     measurement_interval::Int=10^2
 ) where T <: IsingModel
 
-
-end
 
 end
